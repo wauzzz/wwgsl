@@ -7,7 +7,6 @@
 #include <iomanip>
 
 #define GAPI_KEY "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-#define GAPI_KEY "AIzaSyB2h2OuRcUgy5N-5hsZqiPW6sH3n_rptiQ"
 
 using json = nlohmann::json;
 using namespace std;
