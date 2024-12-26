@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #define GAPI_KEY "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+#define GAPI_KEY "AIzaSyB2h2OuRcUgy5N-5hsZqiPW6sH3n_rptiQ"
 
 using json = nlohmann::json;
 using namespace std;
@@ -24,6 +25,7 @@ public:
 private:
 	~WigleJSON();
 	json _jsonWigle;
+	string _filename;
 	bool _isLoaded = false;
 	double _averageLat = 0.0, _averageLon = 0.0;
 	double _distanceEarth(double lat1d, double lon1d, double lat2d, double lon2d);
@@ -36,11 +38,16 @@ WigleJSON::WigleJSON(string file){
 		fWigle >> _jsonWigle;
 		_isLoaded = true;
 		fWigle.close();
+		_jsonWigle["filename"] = file;
+		_jsonWigle["wifi"] = _jsonWigle["results"];
+		_jsonWigle.erase("results");
 		int resultCount = _jsonWigle["resultCount"];
 		cout << "resultCount: " << resultCount << endl;
 		for(int i = 0; i < resultCount; ++i){
-			_averageLat += (double)(_jsonWigle["results"][i]["trilat"]) / resultCount;
-			_averageLon += (double)(_jsonWigle["results"][i]["trilong"]) / resultCount;
+			_averageLat += (double)(_jsonWigle["wifi"][i]["trilat"]) / resultCount;
+			_averageLon += (double)(_jsonWigle["wifi"][i]["trilong"]) / resultCount;
+			if(_jsonWigle["wifi"][i]["ssid"] == nullptr) _jsonWigle["wifi"][i]["ssid"] = "";
+			_jsonWigle["wifi"][i]["bssid"] = _jsonWigle["wifi"][i]["netid"];
 		}
 		cout << "average Lat,Lon: " << setprecision(7) << _averageLat <<"," << _averageLon << endl;
 	}
@@ -50,8 +57,8 @@ void WigleJSON::removeDuplicates(){
 	int resultCount = _jsonWigle["resultCount"];
 	for(int i = 0; i < resultCount; ++i){
 		for(int j = i+1; j < _jsonWigle["resultCount"]; ++j){
-			if(_jsonWigle["results"][i]["netid"] == _jsonWigle["results"][j]["netid"]){
-				_jsonWigle["results"].erase(j);
+			if(_jsonWigle["wifi"][i]["netid"] == _jsonWigle["wifi"][j]["netid"]){
+				_jsonWigle["wifi"].erase(j);
 				resultCount--;
 				j--;
 				cout << "removed 1 duplicate entry\n";
@@ -73,10 +80,10 @@ bool WigleJSON::validateBssList(){
 		if(_googleGetLocation(bssList, i+1, i, retlat, retlon)){
 			cout << "Lat,Lon: " << retlat << "," << retlon << endl;
 			firstGoodPoint = i;
-			_jsonWigle["results"][i]["trilat"] = retlat;
-			_jsonWigle["results"][i]["trilong"] = retlon;
+			_jsonWigle["wifi"][i]["trilat"] = retlat;
+			_jsonWigle["wifi"][i]["trilong"] = retlon;
 			goodPoints[i] = 1;
-			cout << _jsonWigle["results"][i] << endl;
+			cout << _jsonWigle["wifi"][i] << endl;
 			break;
 		}
 	}
@@ -88,10 +95,10 @@ bool WigleJSON::validateBssList(){
 			if(_googleGetLocation(bssList, 2, 1, retlat, retlon)){
 				cout << "Lat,Lon: " << retlat << "," << retlon << endl;
 				secondGoodPoint = i;
-				_jsonWigle["results"][i]["trilat"] = retlat;
-				_jsonWigle["results"][i]["trilong"] = retlon;
+				_jsonWigle["wifi"][i]["trilat"] = retlat;
+				_jsonWigle["wifi"][i]["trilong"] = retlon;
 				goodPoints[i] = 1;
-				cout << _jsonWigle["results"][i] << endl;
+				cout << _jsonWigle["wifi"][i] << endl;
 				break;
 			}
 		}
@@ -103,16 +110,16 @@ bool WigleJSON::validateBssList(){
 				if(_googleGetLocation(bssList, 2, 1, retlat, retlon)){
 					cout << "Lat,Lon: " << retlat << "," << retlon << endl;
 					secondGoodPoint = i;
-					_jsonWigle["results"][i]["trilat"] = retlat;
-					_jsonWigle["results"][i]["trilong"] = retlon;
+					_jsonWigle["wifi"][i]["trilat"] = retlat;
+					_jsonWigle["wifi"][i]["trilong"] = retlon;
 					goodPoints[i] = 1;
-					cout << _jsonWigle["results"][i] << endl;
+					cout << _jsonWigle["wifi"][i] << endl;
 				}
 			}
 			int j = resultCount;
 			for(int i = resultCount -1; i >= 0; --i){
 				if(!goodPoints[i]){
-					_jsonWigle["results"].erase(i);
+					_jsonWigle["wifi"].erase(i);
 					j--;
 				}
 			}
@@ -132,7 +139,7 @@ bool WigleJSON::sortByDistance(double distance){
 	for(int i = 0; i < resultCount; ++i){
 		for(int j = 0; j < resultCount; ++j){
 			if(i == j) continue;
-			if(_distanceEarth(_jsonWigle["results"][i]["trilat"],_jsonWigle["results"][i]["trilong"],_jsonWigle["results"][j]["trilat"],_jsonWigle["results"][j]["trilong"]) < distance){
+			if(_distanceEarth(_jsonWigle["wifi"][i]["trilat"],_jsonWigle["wifi"][i]["trilong"],_jsonWigle["wifi"][j]["trilat"],_jsonWigle["wifi"][j]["trilong"]) < distance){
 				numPoints[i]++;
 				pointSet[i][j] = 1;
 				bret = true;
@@ -149,12 +156,14 @@ bool WigleJSON::sortByDistance(double distance){
 			}
 		}
 		jsonTemp = _jsonWigle;
-		jsonTemp["results"].clear();
-		jsonTemp["results"][0] = _jsonWigle["results"][imax];
+		jsonTemp["wifi"].clear();
+		jsonTemp["wifi"][0] = _jsonWigle["wifi"][imax];
+		jsonTemp["wifi"][0]["rssi"] = -35;
 		int j = 1;
 		for(int i = 0; i < resultCount; i++){
 			if(pointSet[imax][i]){
-				jsonTemp["results"][j] = _jsonWigle["results"][i];
+				jsonTemp["wifi"][j] = _jsonWigle["wifi"][i];
+				jsonTemp["wifi"][j]["rssi"] = -85;
 				j++;
 			}
 		}
@@ -185,7 +194,7 @@ bool WigleJSON::_googleGetLocation(int *bssList, int listCount, int iStrengthPoi
     	json req_json, res_json;
     	req_json["considerIp"] = "false";
     	for(int i = 0; i < listCount; ++i){
-    		req_json["wifiAccessPoints"][i]["macAddress"] = _jsonWigle["results"][bssList[i]]["netid"];
+    		req_json["wifiAccessPoints"][i]["macAddress"] = _jsonWigle["wifi"][bssList[i]]["netid"];
         	int _sig;
     		if(i == iStrengthPoint) _sig = -35; else _sig = -100;
     		req_json["wifiAccessPoints"][i]["signalStrength"] = _sig;
