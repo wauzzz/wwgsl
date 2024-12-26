@@ -7,7 +7,6 @@
 #include <iomanip>
 
 #define GAPI_KEY "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-#define GAPI_KEY "AIzaSyB2h2OuRcUgy5N-5hsZqiPW6sH3n_rptiQ"
 
 using json = nlohmann::json;
 using namespace std;
@@ -25,7 +24,6 @@ public:
 private:
 	~WigleJSON();
 	json _jsonWigle;
-	string _filename;
 	bool _isLoaded = false;
 	double _averageLat = 0.0, _averageLon = 0.0;
 	double _distanceEarth(double lat1d, double lon1d, double lat2d, double lon2d);
