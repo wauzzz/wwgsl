@@ -304,7 +304,10 @@ int main(int argc, char **argv) {
 	WigleJSON *wj;
 	cout << argv[optind] << endl;
 	wj = new WigleJSON(argv[optind]);
-	if(wj->isLoaded()) cout << "json is loaded\n";
+	if(!wj->isLoaded()){
+		cout << "failed to open json file\n";
+		return 1;
+	}
 	wj->removeDuplicates();
 	wj->validateBssList();
 	wj->sortByDistance(distance);
